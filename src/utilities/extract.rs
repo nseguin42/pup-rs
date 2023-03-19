@@ -7,13 +7,19 @@ use tar::Archive;
 
 const SUPPORTED_EXTENSIONS: [&str; 2] = ["gz", "xz"];
 
-pub fn is_supported_extension(path: &Path) -> bool {
+pub fn is_supported_extension(extension: &str) -> bool {
+    SUPPORTED_EXTENSIONS.contains(&extension)
+}
+
+pub fn has_supported_extension(path: &Path) -> bool {
     let extension = path.extension().unwrap();
-    SUPPORTED_EXTENSIONS.contains(&extension.to_str().unwrap())
+    is_supported_extension(extension.to_str().unwrap())
 }
 
 pub fn extract(archive: &Path, destination: &Path) -> Result<(), Error> {
-    if !(is_supported_extension(archive)) {
+    let extension = archive.extension().unwrap().to_str().unwrap();
+
+    if !(is_supported_extension(extension)) {
         return Err(Error::FileTypeNotSupported(
             archive.extension().unwrap().to_str().unwrap().to_string(),
         ));
@@ -23,13 +29,10 @@ pub fn extract(archive: &Path, destination: &Path) -> Result<(), Error> {
         std::fs::create_dir_all(destination)?;
     }
 
-    let extension = archive.extension().unwrap();
-    match extension.to_str().unwrap() {
+    match extension {
         "gz" => extract_gz(archive, destination),
         "xz" => extract_xz(archive, destination),
-        _ => Err(Error::FileTypeNotSupported(
-            extension.to_str().unwrap().to_string(),
-        )),
+        _ => Err(Error::FileTypeNotSupported(extension.to_string())),
     }
 }
 

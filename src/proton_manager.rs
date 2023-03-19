@@ -77,7 +77,7 @@ impl ProtonManager {
         let asset = release
             .assets
             .iter()
-            .find(|a| extract::is_supported_extension(Path::new(&a.browser_download_url.as_str())))
+            .find(|a| extract::has_supported_extension(Path::new(&a.browser_download_url.as_str())))
             .ok_or(Error::NotFound(
                 "Could not find a supported asset in the release".to_string(),
             ))?;
