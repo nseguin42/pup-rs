@@ -26,7 +26,7 @@ async fn main() {
 
 fn setup_logger() {
     pretty_env_logger::formatted_builder()
-        .filter(None, log::LevelFilter::Debug)
+        .filter(None, log::LevelFilter::Info)
         .init();
 }
 
