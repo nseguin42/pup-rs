@@ -2,6 +2,8 @@
 
 A CLI tool to manage Proton versions. Inspired by [protonup](https://github.com/AUNaseef/protonup).
 
+**This project is still in early development.**
+
 ## Usage
 
 See `proton-updater --help` for more information.
