@@ -46,8 +46,26 @@ pub async fn handle_command(cli: Cli, pm: ProtonManager) {
 
 async fn handle_list(pm: ProtonManager, list: cli::List) {
     let releases = pm.fetch_releases(list.count.unwrap_or(10)).await.unwrap();
+    info!(
+        "The following releases are available for @{}/{}:",
+        pm.config.owner, pm.config.repo
+    );
+
+    // Right-align dates.
+    let max_tag_length = releases.iter().map(|r| r.tag_name.len()).max().unwrap_or(0);
+    info!("{}{}{}", "Tag", " ".repeat(max_tag_length), "Date");
+    info!(
+        "{}",
+        "-".repeat("Tag".len() + max_tag_length + "Date".len() + 1)
+    );
     for release in releases {
-        info!("{}", release.tag_name);
+        let spaces = " ".repeat(max_tag_length - release.tag_name.len() + 1);
+        info!(
+            "{}{}{}",
+            release.tag_name,
+            spaces,
+            release.created_at.unwrap().format("%Y-%m-%d")
+        );
     }
 }
 
