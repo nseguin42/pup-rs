@@ -11,6 +11,11 @@ pub struct ProtonManager {
     pub config: Config,
 }
 
+struct DownloadTarget {
+    download_path: PathBuf,
+    filename: String,
+}
+
 impl ProtonManager {
     pub fn new(config: Config) -> Self {
         Self { config }
@@ -29,12 +34,20 @@ impl ProtonManager {
     }
 
     pub async fn get_release(&self, tag: &str) -> Result<Release, Error> {
-        octocrab::instance()
+        let release = octocrab::instance()
             .repos(self.config.owner.as_str(), self.config.repo.as_str())
             .releases()
             .get_by_tag(tag)
             .await
-            .map_err(|e| Error::Api(e.to_string()))
+            .map_err(|e| Error::Api(e.to_string()))?;
+        debug!(
+            "Found release {} ({}) from {}",
+            release.tag_name,
+            release.id,
+            release.created_at.unwrap().format("%Y-%m-%d")
+        );
+
+        Ok(release)
     }
 
     pub async fn install_proton(
@@ -43,9 +56,13 @@ impl ProtonManager {
         use_cache: bool,
         verify: bool,
     ) -> Result<(), Error> {
-        let download_path = self.download_proton(tag, use_cache, verify).await?;
-        let extract_path = self.config.install_dir.join(tag);
-        extract::extract(&download_path, &extract_path)?;
+        let target = self.download_proton(tag, use_cache, verify).await?;
+        extract::extract(&target.download_path, &self.config.install_dir)?;
+        info!(
+            "Extracted {} to {}",
+            target.filename,
+            self.config.install_dir.display()
+        );
         Ok(())
     }
 
@@ -54,22 +71,30 @@ impl ProtonManager {
         tag: &str,
         use_cache: bool,
         verify: bool,
-    ) -> Result<PathBuf, Error> {
+    ) -> Result<DownloadTarget, Error> {
         let release = self.get_release(tag).await?;
 
         let asset = release
             .assets
             .iter()
-            .find(|a| a.name.contains("tar.gz"))
+            .find(|a| extract::is_supported_extension(Path::new(&a.browser_download_url.as_str())))
             .ok_or(Error::NotFound(
-                "Could not find a tar.gz asset in the release".to_string(),
+                "Could not find a supported asset in the release".to_string(),
             ))?;
+
+        let filename = Url::parse((&asset.browser_download_url).as_ref())
+            .unwrap()
+            .path_segments()
+            .unwrap()
+            .last()
+            .unwrap()
+            .to_string();
 
         let tag = release.tag_name.clone();
         let download_path_str = self
             .config
             .cache_dir
-            .join(format!("{}.tar.gz", tag))
+            .join(filename)
             .to_str()
             .unwrap()
             .to_string();
@@ -85,14 +110,22 @@ impl ProtonManager {
             info!("Using cached download for {}", tag);
         }
 
+        let filename;
         if verify {
-            self.verify_download(release, download_path, !use_cached_file)
+            filename = self
+                .verify_download(release, download_path, !use_cached_file)
                 .await?;
         } else {
+            filename = tag;
             warn!("Skipping verification of download");
         }
 
-        Ok(download_path.to_path_buf())
+        let target = DownloadTarget {
+            download_path: download_path.to_path_buf(),
+            filename,
+        };
+
+        Ok(target)
     }
 
     async fn verify_download(
@@ -100,36 +133,12 @@ impl ProtonManager {
         release: Release,
         download_path: &Path,
         remove_on_error: bool,
-    ) -> Result<(), Error> {
-        debug!("Attempting to verify download");
+    ) -> Result<String, Error> {
+        info!("Verifying download integrity...");
         let downloaded_hash_file = self.fetch_hash_file(&release).await?;
         debug!("Hash file: {}", downloaded_hash_file);
 
-        let mut hash_file_split = downloaded_hash_file.split_whitespace().rev();
-        let mut err = None;
-        let expected_filename = hash_file_split.next().ok_or(Error::NotFound(
-            "Could not find filename in hash file".to_string(),
-        ))?;
-        debug!("Expected filename: {}", expected_filename);
-        let actual_filename = download_path
-            .file_name()
-            .ok_or(Error::NotFound(
-                "Could not find filename in download path".to_string(),
-            ))?
-            .to_str()
-            .unwrap();
-        debug!("Actual filename: {}", actual_filename);
-
-        if !expected_filename.eq_ignore_ascii_case(actual_filename) {
-            error!(
-                "Filename mismatch: {} != {}",
-                expected_filename, actual_filename
-            );
-            err = Err(Error::Mismatch {
-                expected: expected_filename.to_string(),
-                actual: actual_filename.to_string(),
-            })?;
-        }
+        let mut hash_file_split = downloaded_hash_file.split_whitespace();
 
         let expected_hash = hash_file_split.next().ok_or(Error::NotFound(
             "Could not find hash in hash file".to_string(),
@@ -143,20 +152,24 @@ impl ProtonManager {
 
         if !hashes_match {
             error!("Hash mismatch");
-            err = Err(Error::Mismatch {
+            if remove_on_error {
+                std::fs::remove_file(download_path)?;
+            }
+            Err(Error::Mismatch {
                 expected: expected_hash.to_string(),
                 actual: actual_hash,
             })?;
         }
 
-        if err.is_some() {
-            if remove_on_error {
-                std::fs::remove_file(download_path)?;
-            }
-            err.unwrap()
-        } else {
-            Ok(())
-        }
+        let filename = hash_file_split
+            .next()
+            .ok_or(Error::NotFound(
+                "Could not find filename in hash file".to_string(),
+            ))?
+            .to_string();
+
+        info!("Checksums match!");
+        Ok(filename)
     }
 
     async fn fetch_hash_file(&self, release: &Release) -> Result<String, Error> {

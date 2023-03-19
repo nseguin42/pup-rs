@@ -5,10 +5,28 @@ use std::io::{Read, Write};
 use std::path::Path;
 use tar::Archive;
 
+const SUPPORTED_EXTENSIONS: [&str; 2] = ["gz", "xz"];
+
+pub fn is_supported_extension(path: &Path) -> bool {
+    let extension = path.extension().unwrap();
+    SUPPORTED_EXTENSIONS.contains(&extension.to_str().unwrap())
+}
+
 pub fn extract(archive: &Path, destination: &Path) -> Result<(), Error> {
+    if !(is_supported_extension(archive)) {
+        return Err(Error::FileTypeNotSupported(
+            archive.extension().unwrap().to_str().unwrap().to_string(),
+        ));
+    }
+
+    if !destination.exists() {
+        std::fs::create_dir_all(destination)?;
+    }
+
     let extension = archive.extension().unwrap();
     match extension.to_str().unwrap() {
         "gz" => extract_gz(archive, destination),
+        "xz" => extract_xz(archive, destination),
         _ => Err(Error::FileTypeNotSupported(
             extension.to_str().unwrap().to_string(),
         )),
@@ -36,6 +54,21 @@ fn extract_gz(archive: &Path, destination: &Path) -> Result<(), Error> {
     let url = archive.as_os_str().to_str().unwrap();
 
     return if url.ends_with(".tar.gz") {
+        unpack_tar_and_save(buffer, destination)
+    } else {
+        save(buffer, destination)
+    };
+}
+
+fn extract_xz(archive: &Path, destination: &Path) -> Result<(), Error> {
+    let file = File::open(archive)?;
+    let mut decoder = xz2::read::XzDecoder::new(file);
+    let mut buffer = Vec::new();
+    decoder.read_to_end(&mut buffer)?;
+
+    let url = archive.as_os_str().to_str().unwrap();
+
+    return if url.ends_with(".tar.xz") {
         unpack_tar_and_save(buffer, destination)
     } else {
         save(buffer, destination)
