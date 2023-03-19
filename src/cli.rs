@@ -32,7 +32,7 @@ pub enum Command {
 #[derive(Debug, Args)]
 pub struct List {
     #[arg(short = 'i', long, default_value = "false")]
-    installed: bool,
+    pub installed: bool,
 
     #[arg(short, long)]
     pub count: Option<u8>,

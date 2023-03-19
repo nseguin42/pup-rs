@@ -21,6 +21,16 @@ impl ProtonManager {
         Self { config }
     }
 
+    pub async fn get_releases(&self, count: u8, installed: bool) -> Result<Vec<Release>, Error> {
+        let releases = self.fetch_releases(count).await?;
+        if installed {
+            self.get_installed_releases(&self.config.install_dir, releases)
+                .await
+        } else {
+            Ok(releases)
+        }
+    }
+
     pub async fn fetch_releases(&self, count: u8) -> Result<Vec<Release>, Error> {
         octocrab::instance()
             .repos(self.config.owner.as_str(), self.config.repo.as_str())
@@ -64,6 +74,35 @@ impl ProtonManager {
             self.config.install_dir.display()
         );
         Ok(())
+    }
+
+    pub async fn get_installed_releases(
+        &self,
+        install_dir: &Path,
+        releases: Vec<Release>,
+    ) -> Result<Vec<Release>, Error> {
+        let mut installed_tags = vec![];
+
+        for entry in install_dir.read_dir()? {
+            let entry = entry?;
+            let path = entry.path();
+            if path.is_dir() {
+                let filename = path.file_name().unwrap().to_str().unwrap();
+                installed_tags.extend(
+                    releases
+                        .iter()
+                        .filter(|r| filename.contains(&r.tag_name))
+                        .map(|r| r.tag_name.clone()),
+                );
+            }
+        }
+
+        let installed_tags = releases
+            .into_iter()
+            .filter(|r| installed_tags.contains(&r.tag_name))
+            .collect();
+
+        Ok(installed_tags)
     }
 
     async fn download_proton(
