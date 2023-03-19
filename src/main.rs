@@ -56,7 +56,3 @@ async fn handle_install(pm: ProtonManager, install: cli::Install) {
         .await
         .unwrap();
 }
-
-async fn handle_remove(pm: ProtonManager, remove: crate::cli::Remove) {
-    //let release = pm.remove_release(&remove.tag).await.unwrap();
-}
