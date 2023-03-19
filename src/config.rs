@@ -1,5 +1,6 @@
-use crate::error::Error;
 use std::path::PathBuf;
+
+use crate::error::Error;
 
 pub struct Config {
     pub install_dir: PathBuf,

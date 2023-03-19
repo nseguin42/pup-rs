@@ -1,11 +1,13 @@
-use crate::config::Config;
-use crate::error::Error;
-use crate::utilities::extract;
+use std::io::Write;
+use std::path::{Path, PathBuf};
+
 use checksums::{hash_file, Algorithm};
 use octocrab::models::repos::Release;
 use reqwest::Url;
-use std::io::Write;
-use std::path::{Path, PathBuf};
+
+use crate::config::Config;
+use crate::error::Error;
+use crate::utilities::extract;
 
 pub struct ProtonManager {
     pub config: Config,
@@ -241,10 +243,12 @@ impl ProtonManager {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use flate2::{Compression, GzBuilder};
     use std::assert_eq;
     use std::fs::File;
+
+    use flate2::{Compression, GzBuilder};
+
+    use super::*;
 
     const TEST_REPO: &str = "proton-ge-custom";
     const TEST_OWNER: &str = "GloriousEggroll";

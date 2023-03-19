@@ -1,10 +1,12 @@
-use crate::error::Error;
-use flate2::read::GzDecoder;
 use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
+
+use flate2::read::GzDecoder;
 use tar::Archive;
 use xz2::read::XzDecoder;
+
+use crate::error::Error;
 
 const SUPPORTED_EXTENSIONS: [&str; 2] = ["gz", "xz"];
 

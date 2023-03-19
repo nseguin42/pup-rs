@@ -1,16 +1,17 @@
+#[macro_use]
+extern crate log;
+
+use clap::Parser;
+
+use crate::cli::{Cli, Command};
+use crate::config::Config;
+use crate::proton_manager::ProtonManager;
+
 mod cli;
 mod config;
 mod error;
 mod proton_manager;
 mod utilities;
-
-#[macro_use]
-extern crate log;
-
-use crate::cli::{Cli, Command};
-use crate::config::Config;
-use crate::proton_manager::ProtonManager;
-use clap::Parser;
 
 #[tokio::main]
 async fn main() {

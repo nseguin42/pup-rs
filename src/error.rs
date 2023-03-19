@@ -1,5 +1,3 @@
-use base_url::url;
-
 pub enum Error {
     IoError(std::io::Error),
     Config(config::ConfigError),
