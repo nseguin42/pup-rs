@@ -1,4 +1,4 @@
-# proton-updater
+# pup-rs
 
 A CLI tool to manage Proton versions. Inspired by [protonup](https://github.com/AUNaseef/protonup).
 
@@ -6,7 +6,7 @@ A CLI tool to manage Proton versions. Inspired by [protonup](https://github.com/
 
 ## Usage
 
-See `proton-updater --help` for more information.
+See `pup --help` for more information.
 
 ### Configuration
 
@@ -31,4 +31,3 @@ The repo can be any Proton or Wine fork that follows the same release convention
 GloriousEggroll's Proton-GE fork (i.e., providing a sha512sum file and a .tar.gz or .tar.xz file for
 each release).
 
-Then run `proton-updater --help` to see the available commands. 

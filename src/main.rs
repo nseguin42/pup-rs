@@ -1,6 +1,5 @@
 mod cli;
 mod config;
-mod constants;
 mod error;
 mod proton_manager;
 mod utilities;

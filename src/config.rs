@@ -11,7 +11,7 @@ pub struct Config {
 impl Config {
     pub fn new(config_path: Option<String>) -> Self {
         let config = config::Config::builder()
-            .add_source(config::Environment::with_prefix("PROTONUP"))
+            .add_source(config::Environment::with_prefix("PUP"))
             .add_source(config::File::from(find_config_file(config_path).unwrap()))
             .build()
             .unwrap();
@@ -39,7 +39,7 @@ fn find_config_file(config_path: Option<String>) -> Result<PathBuf, Error> {
         Some(path) => PathBuf::from(path),
         None => {
             let mut path = dirs::config_dir().ok_or(Error::NotFound("config dir".to_string()))?;
-            path.push("protonup");
+            path.push("pup");
             path.push("config.toml");
             path
         }

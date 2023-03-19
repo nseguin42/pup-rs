@@ -3,7 +3,7 @@ use clap::{Args, Parser, Subcommand};
 #[derive(Debug, Parser)]
 #[command(author, version)]
 #[command(
-    about = "proton-updater: a CLI tool to manage installed Proton versions.",
+    about = "pup-rs: a CLI tool to manage installed Proton versions.",
     author = "nseguin42"
 )]
 pub struct Cli {
