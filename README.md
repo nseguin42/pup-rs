@@ -29,5 +29,4 @@ owner = "GloriousEggroll"
 
 The repo can be any Proton or Wine fork that follows the same release conventions as
 GloriousEggroll's Proton-GE fork (i.e., providing a sha512sum file and a .tar.gz or .tar.xz file for
-each release).
-
+each release). In particular, it can also be used for [@GloriousEggroll/wine-ge-custom](https://github.com/GloriousEggroll/wine-ge-custom).
