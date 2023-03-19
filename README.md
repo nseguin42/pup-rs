@@ -27,8 +27,6 @@ owner = "GloriousEggroll"
 | `repo`        | The name of the repository where the Proton fork is hosted.  |
 | `owner`       | The owner of the repository where the Proton fork is hosted. |
 
-Then run `proton-updater --help` to see the available commands.
-
 The repo can be any Proton or Wine fork that follows the same release conventions as
 GloriousEggroll's Proton-GE fork (i.e., providing a sha512sum file and a .tar.gz or .tar.xz file for
 each release).
