@@ -31,7 +31,7 @@ fn setup_logger() {
 }
 
 fn get_proton_manager(config: Config) -> ProtonManager {
-    ProtonManager::new(config, "proton-ge-custom", "GloriousEggroll")
+    ProtonManager::new(config)
 }
 
 pub async fn handle_command(cli: Cli, pm: ProtonManager) {

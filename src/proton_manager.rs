@@ -9,22 +9,16 @@ use std::path::{Path, PathBuf};
 
 pub struct ProtonManager {
     pub config: Config,
-    repo: String,
-    owner: String,
 }
 
 impl ProtonManager {
-    pub fn new(config: Config, repo: &str, owner: &str) -> Self {
-        Self {
-            config,
-            repo: repo.to_string(),
-            owner: owner.to_string(),
-        }
+    pub fn new(config: Config) -> Self {
+        Self { config }
     }
 
     pub async fn fetch_releases(&self, count: u8) -> Result<Vec<Release>, Error> {
         octocrab::instance()
-            .repos(self.owner.as_str(), self.repo.as_str())
+            .repos(self.config.owner.as_str(), self.config.repo.as_str())
             .releases()
             .list()
             .per_page(count)
@@ -36,7 +30,7 @@ impl ProtonManager {
 
     pub async fn get_release(&self, tag: &str) -> Result<Release, Error> {
         octocrab::instance()
-            .repos(self.owner.as_str(), self.repo.as_str())
+            .repos(self.config.owner.as_str(), self.config.repo.as_str())
             .releases()
             .get_by_tag(tag)
             .await
@@ -210,6 +204,14 @@ mod tests {
         Config {
             install_dir: Default::default(),
             cache_dir: Default::default(),
+            repo: "".to_string(),
+            owner: "".to_string(),
+        }
+    }
+
+    fn get_test_manager() -> ProtonManager {
+        ProtonManager {
+            config: get_test_config(),
         }
     }
 
@@ -235,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_fetch_releases() {
-        let manager = ProtonManager::new(TEST_REPO, TEST_OWNER);
+        let manager = get_test_manager();
         let releases = manager.fetch_releases(10).await;
         assert!(releases.is_ok());
         assert_eq!(releases.unwrap().len(), 10);
@@ -243,7 +245,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_get_release() {
-        let manager = ProtonManager::new(TEST_REPO, TEST_OWNER);
+        let manager = get_test_manager();
         let release = manager.get_release(TEST_TAG).await;
         assert!(release.is_ok());
         assert_eq!(release.unwrap().tag_name, TEST_TAG);
@@ -251,7 +253,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_download_proton() {
-        let manager = ProtonManager::new(TEST_REPO, TEST_OWNER);
+        let manager = get_test_manager();
         let release = manager.get_release(TEST_TAG).await.unwrap();
         manager
             .download_proton(TEST_TAG, false, true)
