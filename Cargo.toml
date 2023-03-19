@@ -1,0 +1,26 @@
+[package]
+name = "proton-updater"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait = "0.1.67"
+base_url = "1.1.0"
+checksums = "0.9.1"
+chrono = {version = "0.4.24", features = ["serde"]}
+clap = {version =  "4.1.11", features = ["derive", "wrap_help"]}
+config = {version = "0.13.3", features = ["serde_json"]}
+dirs = "4.0.0"
+dirs-next = "2.0.0"
+flate2 = {version = "1.0.25", features = ["zlib"]}
+json = "0.12.4"
+log = "0.4.17"
+octocrab = "0.18.1"
+pretty_env_logger = "0.4.0"
+reqwest = "0.11.14"
+serde = {version = "1.0.157", features = ["derive"]}
+serde_json = "1.0.94"
+tar = {version = "0.4.38"}
+tokio = {version = "1.26.0", features = ["full"]}
