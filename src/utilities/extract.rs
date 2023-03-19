@@ -4,6 +4,7 @@ use std::fs::File;
 use std::io::{Read, Write};
 use std::path::Path;
 use tar::Archive;
+use xz2::read::XzDecoder;
 
 const SUPPORTED_EXTENSIONS: [&str; 2] = ["gz", "xz"];
 
@@ -65,7 +66,7 @@ fn extract_gz(archive: &Path, destination: &Path) -> Result<(), Error> {
 
 fn extract_xz(archive: &Path, destination: &Path) -> Result<(), Error> {
     let file = File::open(archive)?;
-    let mut decoder = xz2::read::XzDecoder::new(file);
+    let mut decoder = XzDecoder::new(file);
     let mut buffer = Vec::new();
     decoder.read_to_end(&mut buffer)?;
 
