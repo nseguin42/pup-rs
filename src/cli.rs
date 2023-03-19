@@ -10,15 +10,6 @@ pub struct Cli {
     #[command(subcommand)]
     pub command: Option<Command>,
 
-    #[clap(short, long, default_value = "false")]
-    pub verbose: bool,
-
-    #[clap(short, long, default_value = "false")]
-    pub debug: bool,
-
-    #[clap(short, long, default_value = "false")]
-    pub quiet: bool,
-
     #[clap(long = "config")]
     pub config_path: Option<String>,
 }
