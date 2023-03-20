@@ -28,9 +28,21 @@ impl Config {
             .build()
             .unwrap();
 
-        let modules = config
+        let mut modules = config
             .try_deserialize::<HashMap<String, ConfigModule>>()
             .unwrap();
+
+        // Expand paths.
+        for (_, module) in modules.iter_mut() {
+            module.install_dir = shellexpand::full(&module.install_dir.to_str().unwrap())
+                .unwrap()
+                .to_string()
+                .into();
+            module.cache_dir = shellexpand::full(&module.cache_dir.to_str().unwrap())
+                .unwrap()
+                .to_string()
+                .into();
+        }
 
         Self { path, modules }
     }
