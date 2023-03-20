@@ -11,11 +11,12 @@ See `pup --help` for more information.
 ### Configuration
 
 The config location can be specified
-by passing the `--config` flag. The default location is`$XDG_CONFIG_HOME/protonup/config.toml`.
+by passing the `--config` flag. The default location is`$XDG_CONFIG_HOME/pup-rs/config.toml`.
 
 ```toml
-install_dir = "/path/to/steam/compatibilitytools.d"
-cache_dir = "/path/to/cache/directory"
+[default]
+install_dir = "~/.steam/root/compatibilitytools.d"
+cache_dir = "~/.cache/pup-rs"
 repo = "proton-ge-custom"
 owner = "GloriousEggroll"
 ```
