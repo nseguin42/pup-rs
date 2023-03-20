@@ -20,12 +20,16 @@ pub struct ProtonManager {
 }
 
 impl ProtonManager {
-    pub fn new(config: ConfigModule) -> Self {
-        let releases_cache_file = cache_dir().unwrap().join("pup-rs").join("releases.json");
+    pub fn new(name: String, config: &ConfigModule) -> Self {
+        let releases_cache_file = cache_dir()
+            .unwrap()
+            .join("pup-rs")
+            .join(name)
+            .join("releases.json");
         let releases_cache = Cache::<Release>::new(releases_cache_file, 100);
 
         Self {
-            config,
+            config: config.clone(),
             releases_cache,
         }
     }

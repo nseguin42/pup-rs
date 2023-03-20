@@ -49,7 +49,7 @@ fn get_proton_manager(config: Config, maybe_module_name: Option<String>) -> Prot
         module_name,
         config.path.to_str().unwrap()
     );
-    ProtonManager::new(module_config)
+    ProtonManager::new(module_name, &module_config)
 }
 
 pub async fn handle_command(cli: Cli, config: Config) {
