@@ -1,5 +1,11 @@
-[default]
+[proton]
 install_dir = "~/.steam/root/compatibilitytools.d"
+cache_dir = "/tmp/pup-rs"
+repo = "proton-ge-custom"
+owner = "GloriousEggroll"
+
+[lutris]
+install_dir = "~/.local/share/lutris/runners/wine"
 cache_dir = "/tmp/pup-rs"
 repo = "wine-ge-custom"
 owner = "GloriousEggroll"
