@@ -105,12 +105,6 @@ impl ProtonManager {
 
         release.installed_in = Some(self.config.install_dir.clone());
         self.releases_cache.update(release).unwrap();
-        assert!(self.releases_cache.data.iter().any(|r| r.tag_name == tag));
-        assert!(self
-            .releases_cache
-            .data
-            .iter()
-            .any(|r| r.installed_in.is_some()));
 
         info!("Release {} installed successfully.", tag);
         Ok(())
