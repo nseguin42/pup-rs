@@ -2,11 +2,13 @@
 extern crate log;
 
 use clap::Parser;
+use prettytable::{ptable, row, table, Row, Table};
 use pup_rs::proton_manager::ProtonManager;
 
 use pup_rs::cli;
 use pup_rs::cli::{Cli, Command};
 use pup_rs::config::Config;
+use pup_rs::models::release::Release;
 
 #[tokio::main]
 async fn main() {
@@ -116,22 +118,27 @@ async fn handle_list(mut pm: ProtonManager, list: cli::List) {
         pm.config.repo
     );
 
-    // Right-align dates.
-    let max_tag_length = releases.iter().map(|r| r.tag_name.len()).max().unwrap_or(0);
-    info!("{}{}{}", "Tag", " ".repeat(max_tag_length), "Date");
-    info!(
-        "{}",
-        "-".repeat("Tag".len() + max_tag_length + "Date".len() + 1)
-    );
+    let mut table = Table::new();
+    table.set_format(*prettytable::format::consts::FORMAT_NO_BORDER_LINE_SEPARATOR);
+    table.set_titles(row!["Tag", "Date", "Installed in"]);
     for release in releases {
-        let spaces = " ".repeat(max_tag_length - release.tag_name.len() + 1);
-        info!(
-            "{}{}{}",
-            release.tag_name,
-            spaces,
-            release.published_at.unwrap().format("%Y-%m-%d")
-        );
+        table.add_row(get_list_table_row(&release));
     }
+    table.printstd();
+}
+
+fn get_list_table_row(release: &Release) -> Row {
+    let date = release.published_at.unwrap().format("%Y-%m-%d");
+    row![
+        release.tag_name,
+        date,
+        release
+            .installed_in
+            .clone()
+            .unwrap_or_default()
+            .to_str()
+            .unwrap()
+    ]
 }
 
 async fn handle_install(mut pm: ProtonManager, install: cli::Install) {

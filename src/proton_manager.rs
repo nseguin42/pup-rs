@@ -71,7 +71,7 @@ impl ProtonManager {
             .collect();
 
         self.releases_cache.extend(releases.clone());
-        Ok(releases)
+        Ok(self.releases_cache.get())
     }
 
     pub async fn get_release(&self, tag: &str) -> Result<Release, Error> {
