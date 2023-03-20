@@ -42,7 +42,11 @@ fn get_proton_manager(config: Config, maybe_module_name: Option<String>) -> Prot
         }
     };
 
-    info!("Using config module {}.", module_name);
+    info!(
+        "Using config module \"{}\" defined in {}.",
+        module_name,
+        config.path.to_str().unwrap()
+    );
     ProtonManager::new(module_config)
 }
 

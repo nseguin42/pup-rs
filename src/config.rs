@@ -1,4 +1,3 @@
-
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -7,6 +6,7 @@ use crate::error::Error;
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
+    pub path: PathBuf,
     pub modules: HashMap<String, ConfigModule>,
 }
 
@@ -20,6 +20,8 @@ pub struct ConfigModule {
 
 impl Config {
     pub fn new(config_path: Option<String>) -> Self {
+        let path = find_config_file(config_path.clone()).unwrap();
+
         let config = config::Config::builder()
             .add_source(config::Environment::with_prefix("PUP"))
             .add_source(config::File::from(find_config_file(config_path).unwrap()))
@@ -30,7 +32,7 @@ impl Config {
             .try_deserialize::<HashMap<String, ConfigModule>>()
             .unwrap();
 
-        Self { modules }
+        Self { path, modules }
     }
 }
 
