@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{PathBuf};
+use std::path::PathBuf;
 
 use base_url::BaseUrl;
 use checksums::Algorithm;
@@ -14,7 +14,6 @@ use crate::utilities::downloader::Downloader;
 use crate::utilities::downloader::FileGetter;
 use crate::utilities::extract;
 
-
 pub struct ProtonManager {
     pub config: ConfigModule,
     releases_cache: Cache<Release>,
@@ -22,8 +21,8 @@ pub struct ProtonManager {
 
 impl ProtonManager {
     pub fn new(config: ConfigModule) -> Self {
-        let releases_cache_file = cache_dir().unwrap().join("pup-rs/releases.json");
-        let releases_cache = Cache::<Release>::new(releases_cache_file, 10);
+        let releases_cache_file = cache_dir().unwrap().join("pup-rs").join("releases.json");
+        let releases_cache = Cache::<Release>::new(releases_cache_file, 100);
 
         Self {
             config,
@@ -36,19 +35,24 @@ impl ProtonManager {
         count: u8,
         installed: bool,
     ) -> Result<Vec<Release>, Error> {
-        if installed {
-            let releases = self
-                .releases_cache
-                .data
-                .iter()
-                .filter(|r| r.installed_in.is_some())
-                .cloned()
-                .collect::<Vec<_>>();
-            Ok(releases)
-        } else {
-            let releases = self.fetch_releases(count).await?;
-            Ok(releases)
-        }
+        let releases = match installed {
+            true => self.get_installed_releases().await?,
+            false => self.fetch_releases(count).await?,
+        };
+
+        Ok(releases)
+    }
+
+    pub async fn get_installed_releases(&self) -> Result<Vec<Release>, Error> {
+        let releases = self
+            .releases_cache
+            .data
+            .iter()
+            .filter(|r| r.installed_in.is_some())
+            .cloned()
+            .collect();
+
+        Ok(releases)
     }
 
     pub async fn fetch_releases(&mut self, count: u8) -> Result<Vec<Release>, Error> {
@@ -202,7 +206,8 @@ impl ProtonManager {
             let asset = release
                 .assets
                 .iter()
-                .find(|a| a.name.ends_with(asset_type)).cloned();
+                .find(|a| a.name.ends_with(asset_type))
+                .cloned();
 
             if asset.is_some() {
                 return Ok(asset.unwrap());
