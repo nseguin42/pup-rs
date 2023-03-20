@@ -1,5 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fs::File;
+use std::io::Write;
 use std::path::PathBuf;
 
 use crate::error::Error;
@@ -52,19 +54,28 @@ fn find_config_file(config_path: Option<String>) -> Result<PathBuf, Error> {
     let config_path = match config_path {
         Some(path) => PathBuf::from(path),
         None => {
-            let mut path = dirs::config_dir().ok_or(Error::NotFound("config dir".to_string()))?;
-            path.push("pup");
-            path.push("config.toml");
+            let path = dirs::config_dir()
+                .ok_or(Error::NotFound("config dir".to_string()))?
+                .join("pup")
+                .join("config.toml");
             path
         }
     };
 
     if !config_path.exists() {
-        return Err(Error::NotFound(format!(
-            "Config file not found at {}",
-            config_path.to_str().unwrap()
-        )));
+        info!(
+            "Config file not found, creating default config at {:?}",
+            config_path
+        );
+        create_default_config(config_path.clone())?;
     }
 
     Ok(config_path)
+}
+
+fn create_default_config(path: PathBuf) -> Result<(), Error> {
+    let default_config = include_str!("../config.default.toml");
+    let mut file = File::create(path)?;
+    file.write_all(default_config.as_bytes())?;
+    Ok(())
 }
