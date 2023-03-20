@@ -15,7 +15,7 @@ pub struct Cli {
     pub config_path: Option<String>,
 
     #[clap(long = "module")]
-    #[clap(help = "The name of the module to use.")]
+    #[clap(help = "The name of the config module to use. Defaults to the first module defined.")]
     pub module: Option<String>,
 }
 
