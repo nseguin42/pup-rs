@@ -14,11 +14,6 @@ pub fn is_supported_extension(extension: &str) -> bool {
     SUPPORTED_EXTENSIONS.contains(&extension)
 }
 
-pub fn has_supported_extension(path: &Path) -> bool {
-    let extension = path.extension().unwrap();
-    is_supported_extension(extension.to_str().unwrap())
-}
-
 pub fn extract(archive: &Path, destination: &Path) -> Result<(), Error> {
     let extension = archive.extension().unwrap().to_str().unwrap();
 
