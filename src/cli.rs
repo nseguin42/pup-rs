@@ -13,6 +13,10 @@ pub struct Cli {
     #[clap(long = "config")]
     #[clap(help = "The path to the config file.")]
     pub config_path: Option<String>,
+
+    #[clap(long = "module")]
+    #[clap(help = "The name of the module to use.")]
+    pub module: Option<String>,
 }
 
 #[derive(Debug, Subcommand)]

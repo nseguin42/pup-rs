@@ -2,16 +2,11 @@
 extern crate log;
 
 use clap::Parser;
+use pup_rs::proton_manager::ProtonManager;
 
-use crate::cli::{Cli, Command};
-use crate::config::Config;
-use crate::proton_manager::ProtonManager;
-
-mod cli;
-mod config;
-mod error;
-mod proton_manager;
-mod utilities;
+use pup_rs::cli;
+use pup_rs::cli::{Cli, Command};
+use pup_rs::config::Config;
 
 #[tokio::main]
 async fn main() {
@@ -20,21 +15,40 @@ async fn main() {
     debug!("CLI: {:?}", cli);
 
     let config = Config::new(cli.config_path.clone());
-    let pm = get_proton_manager(config);
-    handle_command(cli, pm).await;
+    handle_command(cli, config).await;
 }
 
 fn setup_logger() {
     pretty_env_logger::formatted_builder()
-        .filter(None, log::LevelFilter::Info)
+        .filter_level(log::LevelFilter::Info)
         .init();
 }
 
-fn get_proton_manager(config: Config) -> ProtonManager {
-    ProtonManager::new(config)
+fn get_proton_manager(config: Config, maybe_module_name: Option<String>) -> ProtonManager {
+    let (module_name, module_config) = match maybe_module_name {
+        Some(module_name) => {
+            let module_config = match config.modules.get(&module_name) {
+                Some(config) => config.clone(),
+                None => {
+                    error!("Module {} not found in config.", module_name);
+                    std::process::exit(1);
+                }
+            };
+            (module_name, module_config)
+        }
+        None => {
+            let (module_name, module_config) = config.modules.iter().next().unwrap();
+            (module_name.clone(), module_config.clone())
+        }
+    };
+
+    info!("Using config module {}.", module_name);
+    ProtonManager::new(module_config)
 }
 
-pub async fn handle_command(cli: Cli, pm: ProtonManager) {
+pub async fn handle_command(cli: Cli, config: Config) {
+    let pm = get_proton_manager(config, cli.module);
+
     match cli.command {
         Some(command) => match command {
             Command::List(list) => handle_list(pm, list).await,
@@ -44,7 +58,7 @@ pub async fn handle_command(cli: Cli, pm: ProtonManager) {
     }
 }
 
-async fn check_for_updates(pm: ProtonManager) {
+async fn check_for_updates(mut pm: ProtonManager) {
     let releases = pm.get_releases(1, false).await.unwrap();
     if releases.is_empty() {
         error!("No releases found.");
@@ -76,7 +90,7 @@ async fn check_for_updates(pm: ProtonManager) {
     }
 }
 
-async fn handle_list(pm: ProtonManager, list: cli::List) {
+async fn handle_list(mut pm: ProtonManager, list: cli::List) {
     let releases = pm
         .get_releases(list.count.unwrap_or(10), list.installed)
         .await
@@ -111,13 +125,11 @@ async fn handle_list(pm: ProtonManager, list: cli::List) {
             "{}{}{}",
             release.tag_name,
             spaces,
-            release.created_at.unwrap().format("%Y-%m-%d")
+            release.published_at.unwrap().format("%Y-%m-%d")
         );
     }
 }
 
-async fn handle_install(pm: ProtonManager, install: cli::Install) {
-    pm.install_proton(&install.tag, install.use_cache, install.verify_download)
-        .await
-        .unwrap();
+async fn handle_install(mut pm: ProtonManager, install: cli::Install) {
+    pm.install_release(&install.tag).await.unwrap();
 }

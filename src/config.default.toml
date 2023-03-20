@@ -1,0 +1,5 @@
+[default]
+install_dir = "~/.steam/root/compatibilitytools.d"
+cache_dir = "/tmp/pup-rs"
+repo = "wine-ge-custom"
+owner = "GloriousEggroll"

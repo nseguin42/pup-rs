@@ -1,40 +1,58 @@
-use std::io::Write;
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
-use checksums::{hash_file, Algorithm};
-use octocrab::models::repos::Release;
-use reqwest::Url;
+use base_url::BaseUrl;
+use checksums::Algorithm;
+use dirs::cache_dir;
 
-use crate::config::Config;
+use crate::config::ConfigModule;
 use crate::error::Error;
+use crate::models::asset::Asset;
+use crate::models::release::Release;
+use crate::utilities::cache::Cache;
+use crate::utilities::downloader::Downloader;
+use crate::utilities::downloader::FileGetter;
 use crate::utilities::extract;
+use crate::utilities::extract::extract;
 
 pub struct ProtonManager {
-    pub config: Config,
-}
-
-struct DownloadTarget {
-    download_path: PathBuf,
-    filename: String,
+    pub config: ConfigModule,
+    releases_cache: Cache<Release>,
 }
 
 impl ProtonManager {
-    pub fn new(config: Config) -> Self {
-        Self { config }
+    pub fn new(config: ConfigModule) -> Self {
+        let releases_cache_file = cache_dir().unwrap().join("pup-rs/releases.json");
+        let releases_cache = Cache::<Release>::new(releases_cache_file, 10);
+
+        Self {
+            config,
+            releases_cache,
+        }
     }
 
-    pub async fn get_releases(&self, count: u8, installed: bool) -> Result<Vec<Release>, Error> {
-        let releases = self.fetch_releases(count).await?;
+    pub async fn get_releases(
+        &mut self,
+        count: u8,
+        installed: bool,
+    ) -> Result<Vec<Release>, Error> {
         if installed {
-            self.get_installed_releases(&self.config.install_dir, releases)
-                .await
+            let releases = self
+                .releases_cache
+                .data
+                .iter()
+                .filter(|r| r.installed_in.is_some())
+                .cloned()
+                .collect::<Vec<_>>();
+            Ok(releases)
         } else {
+            let releases = self.fetch_releases(count).await?;
             Ok(releases)
         }
     }
 
-    pub async fn fetch_releases(&self, count: u8) -> Result<Vec<Release>, Error> {
-        octocrab::instance()
+    pub async fn fetch_releases(&mut self, count: u8) -> Result<Vec<Release>, Error> {
+        let releases: Vec<Release> = octocrab::instance()
             .repos(self.config.owner.as_str(), self.config.repo.as_str())
             .releases()
             .list()
@@ -42,7 +60,13 @@ impl ProtonManager {
             .send()
             .await
             .map(|r| r.items)
-            .map_err(|e| Error::Api(e.to_string()))
+            .map_err(|e| Error::Api(e.to_string()))?
+            .into_iter()
+            .map(|r| Release::from(r))
+            .collect();
+
+        self.releases_cache.add_range(releases.clone());
+        Ok(releases)
     }
 
     pub async fn get_release(&self, tag: &str) -> Result<Release, Error> {
@@ -59,268 +83,135 @@ impl ProtonManager {
             release.created_at.unwrap().format("%Y-%m-%d")
         );
 
-        Ok(release)
+        Ok(release.into())
     }
 
-    pub async fn install_proton(
-        &self,
-        tag: &str,
-        use_cache: bool,
-        verify: bool,
-    ) -> Result<(), Error> {
-        let target = self.download_proton(tag, use_cache, verify).await?;
-        extract::extract(&target.download_path, &self.config.install_dir)?;
+    pub async fn install_release(&mut self, tag: &str) -> Result<(), Error> {
+        info!("Installing release {}", tag);
+        let mut release = self.get_release(tag).await?;
+        let downloaded_file = self.download_release(&release).await?;
+
         info!(
-            "Extracted {} to {}",
-            target.filename,
+            "Extracting {} to {}",
+            downloaded_file.display(),
             self.config.install_dir.display()
         );
+        extract::extract(&downloaded_file, &self.config.install_dir)?;
+
+        release.installed_in = Some(self.config.install_dir.clone());
+        self.releases_cache.add(release);
+
+        info!("Release {} installed successfully.", tag);
         Ok(())
     }
 
-    pub async fn get_installed_releases(
-        &self,
-        install_dir: &Path,
-        releases: Vec<Release>,
-    ) -> Result<Vec<Release>, Error> {
-        let mut installed_tags = vec![];
+    async fn download_release(&self, release: &Release) -> Result<PathBuf, Error> {
+        let asset = self.get_asset(&release).await?;
+        let download_url = BaseUrl::try_from(asset.browser_download_url.as_str())?;
+        let filename = download_url.path_segments().last().unwrap().to_string();
+        debug!("Found asset {} at {}", filename, download_url);
 
-        for entry in install_dir.read_dir()? {
-            let entry = entry?;
-            let path = entry.path();
-            if path.is_dir() {
-                let filename = path.file_name().unwrap().to_str().unwrap();
-                installed_tags.extend(
-                    releases
-                        .iter()
-                        .filter(|r| filename.contains(&r.tag_name))
-                        .map(|r| r.tag_name.clone()),
-                );
-            }
-        }
+        let (checksum, checksum_algorithm) = self.fetch_checksum(&release, &filename).await?;
+        let download_path = self.config.cache_dir.join(&filename);
+        let cache_dir = self.config.cache_dir.to_str();
 
-        let installed_tags = releases
-            .into_iter()
-            .filter(|r| installed_tags.contains(&r.tag_name))
-            .collect();
+        let downloader = Downloader::new(
+            Option::from(download_url),
+            Option::from(download_path.to_path_buf()),
+            cache_dir,
+            Option::from(checksum.as_str()),
+            Option::from(checksum_algorithm),
+            true,
+        );
+        let file = downloader.get_file().await?;
 
-        Ok(installed_tags)
+        Ok(file.into())
     }
 
-    async fn download_proton(
+    async fn fetch_checksum(
         &self,
-        tag: &str,
-        use_cache: bool,
-        verify: bool,
-    ) -> Result<DownloadTarget, Error> {
-        let release = self.get_release(tag).await?;
+        release: &Release,
+        filename: &str,
+    ) -> Result<(String, Algorithm), Error> {
+        let basename = filename.split('.').next().unwrap();
+        debug!("Fetching checksum for {}", basename);
 
-        let asset = release
+        let hash_types = HashMap::from([
+            ("sha512sum", Algorithm::SHA2512),
+            ("sha256sum", Algorithm::SHA2256),
+            ("sha1sum", Algorithm::SHA1),
+            ("md5sum", Algorithm::MD5),
+        ]);
+
+        let asset_filenames = release
             .assets
             .iter()
-            .find(|a| extract::has_supported_extension(Path::new(&a.browser_download_url.as_str())))
-            .ok_or(Error::NotFound(
-                "Could not find a supported asset in the release".to_string(),
-            ))?;
+            .map(|a| {
+                a.browser_download_url
+                    .path_segments()
+                    .unwrap()
+                    .last()
+                    .unwrap()
+            })
+            .collect::<Vec<_>>();
+        debug!("Assets: {:?}", asset_filenames);
 
-        let filename = Url::parse((&asset.browser_download_url).as_ref())
-            .unwrap()
-            .path_segments()
-            .unwrap()
-            .last()
-            .unwrap()
-            .to_string();
-
-        let tag = release.tag_name.clone();
-        let download_path_str = self
-            .config
-            .cache_dir
-            .join(filename)
-            .to_str()
-            .unwrap()
-            .to_string();
-        let download_path = Path::new(download_path_str.as_str());
-
-        let use_cached_file = use_cache && download_path.exists();
-        if !use_cached_file {
-            let url = asset.browser_download_url.clone();
-            info!("Downloading release {} from {}", tag, url);
-            self.download_and_save(url, download_path).await?;
-            debug!("Finished downloading {}", tag);
-        } else {
-            info!("Using cached download for {}", tag);
-        }
-
-        let filename;
-        if verify {
-            filename = self
-                .verify_download(release, download_path, !use_cached_file)
-                .await?;
-        } else {
-            filename = tag;
-            warn!("Skipping verification of download");
-        }
-
-        let target = DownloadTarget {
-            download_path: download_path.to_path_buf(),
-            filename,
-        };
-
-        Ok(target)
-    }
-
-    async fn verify_download(
-        &self,
-        release: Release,
-        download_path: &Path,
-        remove_on_error: bool,
-    ) -> Result<String, Error> {
-        info!("Verifying download integrity...");
-        let downloaded_hash_file = self.fetch_hash_file(&release).await?;
-        debug!("Hash file: {}", downloaded_hash_file);
-
-        let mut hash_file_split = downloaded_hash_file.split_whitespace();
-
-        let expected_hash = hash_file_split.next().ok_or(Error::NotFound(
-            "Could not find hash in hash file".to_string(),
-        ))?;
-        debug!("Expected hash: {}", expected_hash);
-
-        let actual_hash = hash_file(download_path, Algorithm::SHA2512);
-        debug!("Actual hash: {}", actual_hash);
-
-        let hashes_match = actual_hash.eq_ignore_ascii_case(&expected_hash);
-
-        if !hashes_match {
-            error!("Hash mismatch");
-            if remove_on_error {
-                std::fs::remove_file(download_path)?;
-            }
-            Err(Error::Mismatch {
-                expected: expected_hash.to_string(),
-                actual: actual_hash,
-            })?;
-        }
-
-        let filename = hash_file_split
-            .next()
-            .ok_or(Error::NotFound(
-                "Could not find filename in hash file".to_string(),
-            ))?
-            .to_string();
-
-        info!("Checksums match!");
-        Ok(filename)
-    }
-
-    async fn fetch_hash_file(&self, release: &Release) -> Result<String, Error> {
-        debug!("Fetching hash file for release");
-        let asset = release
-            .assets
+        let assets_with_same_basename = asset_filenames
             .iter()
-            .find(|a| a.name.ends_with(".sha512sum"))
-            .ok_or(Error::NotFound(
-                "Could not find a .sha512 asset in the release".to_string(),
-            ))?;
+            .filter(|a| a.starts_with(basename))
+            .collect::<Vec<_>>();
 
-        let url = asset.browser_download_url.clone();
-        let response = reqwest::get(url).await?;
-        let hash_file = response.text().await?;
-        Ok(hash_file)
-    }
+        for (hash_type, algorithm) in hash_types {
+            let checksum_asset_idx = assets_with_same_basename
+                .iter()
+                .position(|a| a.starts_with(basename) && a.ends_with(hash_type));
 
-    async fn download_and_save(&self, url: Url, output_path: &Path) -> Result<(), Error> {
-        match reqwest::get(url).await {
-            Ok(response) => {
-                let mut file = std::fs::File::create(output_path)?;
-                file.write_all(&response.bytes().await?)?;
-                Ok(())
+            if checksum_asset_idx.is_none() {
+                continue;
             }
-            Err(e) => Err(Error::Api(e.to_string())),
+
+            let checksum_url = release
+                .assets
+                .get(checksum_asset_idx.unwrap())
+                .unwrap()
+                .browser_download_url
+                .clone();
+
+            let response = reqwest::get(checksum_url).await?;
+
+            let checksum = response
+                .text()
+                .await?
+                .split_whitespace()
+                .next()
+                .unwrap()
+                .to_string();
+
+            return Ok((checksum, algorithm));
         }
+
+        Err(Error::NotFound(
+            "Could not find a checksum file in the release".to_string(),
+        ))
     }
-}
 
-#[cfg(test)]
-mod tests {
-    use std::assert_eq;
-    use std::fs::File;
+    async fn get_asset(&self, release: &Release) -> Result<Asset, Error> {
+        let asset_types = vec!["tar.gz", "tar.xz"];
 
-    use flate2::{Compression, GzBuilder};
+        for asset_type in asset_types {
+            let asset = release
+                .assets
+                .iter()
+                .find(|a| a.name.ends_with(asset_type))
+                .map(|a| a.clone());
 
-    use super::*;
-
-    const TEST_REPO: &str = "proton-ge-custom";
-    const TEST_OWNER: &str = "GloriousEggroll";
-    const TEST_TAG: &str = "GE-Proton7-51";
-    const TEST_DOWNLOAD_DIR: &str = "/tmp/protonup/";
-    const TEST_EXTRACT_PATH: &str = "/tmp/protonup/extracted";
-
-    fn get_test_config() -> Config {
-        Config {
-            install_dir: Default::default(),
-            cache_dir: Default::default(),
-            repo: "".to_string(),
-            owner: "".to_string(),
+            if asset.is_some() {
+                return Ok(asset.unwrap());
+            }
         }
-    }
 
-    fn get_test_manager() -> ProtonManager {
-        ProtonManager {
-            config: get_test_config(),
-        }
-    }
-
-    fn create_test_download() -> Result<(), Error> {
-        let filename = format!("{}.tar.gz", TEST_TAG);
-        let download_path = Path::new(TEST_DOWNLOAD_DIR).join(filename.clone());
-
-        let f = File::create(download_path.clone())?;
-        let mut gz = GzBuilder::new()
-            .filename("hello_world.txt")
-            .comment("test file, please delete")
-            .write(f, Compression::default());
-        gz.write_all(b"hello world")?;
-        gz.finish().expect("Failed to finish writing tar.gz file");
-
-        let hash = hash_file(&download_path, Algorithm::SHA2512);
-
-        let mut h = File::create(download_path.with_extension("sha512sum"))?;
-        h.write_all(format!("{}  {}", hash, filename).as_bytes())?;
-
-        Ok(())
-    }
-
-    #[tokio::test]
-    async fn test_fetch_releases() {
-        let manager = get_test_manager();
-        let releases = manager.fetch_releases(10).await;
-        assert!(releases.is_ok());
-        assert_eq!(releases.unwrap().len(), 10);
-    }
-
-    #[tokio::test]
-    async fn test_get_release() {
-        let manager = get_test_manager();
-        let release = manager.get_release(TEST_TAG).await;
-        assert!(release.is_ok());
-        assert_eq!(release.unwrap().tag_name, TEST_TAG);
-    }
-
-    #[tokio::test]
-    async fn test_download_proton() {
-        let manager = get_test_manager();
-        let release = manager.get_release(TEST_TAG).await.unwrap();
-        manager
-            .download_proton(TEST_TAG, false, true)
-            .await
-            .unwrap();
-
-        assert!(Path::new(TEST_DOWNLOAD_DIR)
-            .join(format!("{}.tar.gz", TEST_TAG))
-            .exists());
-        assert!(Path::new(TEST_DOWNLOAD_DIR)
-            .join(format!("{}.tar.gz.sha512sum", TEST_TAG))
-            .exists());
+        Err(Error::NotFound(
+            "Could not find a supported asset in the release".to_string(),
+        ))
     }
 }

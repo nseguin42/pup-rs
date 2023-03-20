@@ -1,0 +1,5 @@
+[test]
+install_dir = "/tmp/pup-rs/install"
+cache_dir = "/tmp/pup-rs/cache"
+repo = "proton-ge-custom"
+owner = "GloriousEggroll"

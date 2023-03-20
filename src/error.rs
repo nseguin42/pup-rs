@@ -1,13 +1,15 @@
 pub enum Error {
     IoError(std::io::Error),
     Config(config::ConfigError),
-    BaseUrl(base_url::BaseUrlError),
+    Url(String),
     Serde(serde_json::Error),
     Api(String),
     NotFound(String),
     FileTypeNotSupported(String),
     Unspecified(String),
     Mismatch { expected: String, actual: String },
+    CacheFileNotFound(String),
+    NoDownloadStrategy,
 }
 
 impl Error {
@@ -19,19 +21,21 @@ impl Error {
 impl std::fmt::Debug for Error {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Error::IoError(e) => write!(f, "IO Error: {}", e),
-            Error::Config(e) => write!(f, "Config Error: {}", e),
-            Error::BaseUrl(e) => write!(f, "Base URL Error"),
-            Error::Serde(e) => write!(f, "Serde Error: {}", e),
-            Error::Api(e) => write!(f, "API Error: {}", e),
-            Error::NotFound(e) => write!(f, "Release Not Found Error: {}", e),
-            Error::FileTypeNotSupported(e) => write!(f, "File Type Not Supported Error: {}", e),
-            Error::Unspecified(e) => write!(f, "Unspecified Error: {}", e),
+            Error::IoError(e) => write!(f, "IO: {}", e),
+            Error::Config(e) => write!(f, "Config: {}", e),
+            Error::Url(e) => write!(f, "URL Error"),
+            Error::Serde(e) => write!(f, "Serde: {}", e),
+            Error::Api(e) => write!(f, "API: {}", e),
+            Error::NotFound(e) => write!(f, "Not found: {}", e),
+            Error::FileTypeNotSupported(e) => write!(f, "File type not supported: {}", e),
+            Error::Unspecified(e) => write!(f, "Unspecified: {}", e),
+            Error::CacheFileNotFound(e) => write!(f, "Cache file not found: {}", e),
             Error::Mismatch { expected, actual } => write!(
                 f,
                 "Hash Mismatch Error: expected {}, got {}",
                 expected, actual
             ),
+            Error::NoDownloadStrategy => write!(f, "No download strategy"),
         }
     }
 }
@@ -58,7 +62,13 @@ impl From<config::ConfigError> for Error {
 
 impl From<base_url::BaseUrlError> for Error {
     fn from(error: base_url::BaseUrlError) -> Self {
-        Error::BaseUrl(error)
+        Error::Url("Invalid URL".to_string())
+    }
+}
+
+impl From<base_url::ParseError> for Error {
+    fn from(error: base_url::ParseError) -> Self {
+        Error::Url(error.to_string())
     }
 }
 

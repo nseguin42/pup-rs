@@ -1,8 +1,17 @@
+use config::Source;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::path::PathBuf;
 
 use crate::error::Error;
 
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Config {
+    pub modules: HashMap<String, ConfigModule>,
+}
+
+#[derive(Debug, Deserialize, Serialize, Clone)]
+pub struct ConfigModule {
     pub install_dir: PathBuf,
     pub cache_dir: PathBuf,
     pub repo: String,
@@ -17,21 +26,11 @@ impl Config {
             .build()
             .unwrap();
 
-        let install_dir = config.get_string("install_dir").unwrap();
-        let cache_dir = config
-            .get::<Option<String>>("cache_dir")
-            .unwrap()
-            .unwrap_or(dirs::cache_dir().unwrap().to_str().unwrap().to_string());
+        let modules = config
+            .try_deserialize::<HashMap<String, ConfigModule>>()
+            .unwrap();
 
-        let repo = config.get_string("repo").unwrap();
-        let owner = config.get_string("owner").unwrap();
-
-        Self {
-            install_dir: PathBuf::from(install_dir),
-            cache_dir: PathBuf::from(cache_dir),
-            repo,
-            owner,
-        }
+        Self { modules }
     }
 }
 
