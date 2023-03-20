@@ -19,14 +19,16 @@ install_dir = "~/.steam/root/compatibilitytools.d"
 cache_dir = "~/.cache/pup-rs"
 repo = "proton-ge-custom"
 owner = "GloriousEggroll"
+symlink = "proton-ge-custom"
 ```
 
-| Option        | Description                                                  |
-|---------------|--------------------------------------------------------------|
-| `install_dir` | The directory where Proton versions will be installed.       |
-| `cache_dir`   | The directory where Proton versions will be cached.          |
-| `repo`        | The name of the repository where the Proton fork is hosted.  |
-| `owner`       | The owner of the repository where the Proton fork is hosted. |
+| Option        | Description                                                            |
+|---------------|------------------------------------------------------------------------|
+| `install_dir` | The directory where Proton versions will be installed.                 |
+| `cache_dir`   | The directory where Proton versions will be cached.                    |
+| `repo`        | The name of the repository where the Proton fork is hosted.            |
+| `owner`       | The owner of the repository where the Proton fork is hosted.           |
+| `symlink`     | The name of the symlink that will be created to the installed version. |
 
 The repo can be any Proton or Wine fork that follows the same release conventions as
 GloriousEggroll's Proton-GE fork (i.e., providing a sha512sum file and a .tar.gz or .tar.xz file for
