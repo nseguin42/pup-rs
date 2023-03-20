@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
+use std::path::{PathBuf};
 
 use base_url::BaseUrl;
 use checksums::Algorithm;
@@ -13,7 +13,7 @@ use crate::utilities::cache::Cache;
 use crate::utilities::downloader::Downloader;
 use crate::utilities::downloader::FileGetter;
 use crate::utilities::extract;
-use crate::utilities::extract::extract;
+
 
 pub struct ProtonManager {
     pub config: ConfigModule,
@@ -62,7 +62,7 @@ impl ProtonManager {
             .map(|r| r.items)
             .map_err(|e| Error::Api(e.to_string()))?
             .into_iter()
-            .map(|r| Release::from(r))
+            .map(Release::from)
             .collect();
 
         self.releases_cache.add_range(releases.clone());
@@ -106,12 +106,12 @@ impl ProtonManager {
     }
 
     async fn download_release(&self, release: &Release) -> Result<PathBuf, Error> {
-        let asset = self.get_asset(&release).await?;
+        let asset = self.get_asset(release).await?;
         let download_url = BaseUrl::try_from(asset.browser_download_url.as_str())?;
         let filename = download_url.path_segments().last().unwrap().to_string();
         debug!("Found asset {} at {}", filename, download_url);
 
-        let (checksum, checksum_algorithm) = self.fetch_checksum(&release, &filename).await?;
+        let (checksum, checksum_algorithm) = self.fetch_checksum(release, &filename).await?;
         let download_path = self.config.cache_dir.join(&filename);
         let cache_dir = self.config.cache_dir.to_str();
 
@@ -202,8 +202,7 @@ impl ProtonManager {
             let asset = release
                 .assets
                 .iter()
-                .find(|a| a.name.ends_with(asset_type))
-                .map(|a| a.clone());
+                .find(|a| a.name.ends_with(asset_type)).cloned();
 
             if asset.is_some() {
                 return Ok(asset.unwrap());

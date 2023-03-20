@@ -1,4 +1,4 @@
-use pup_rs::config::{Config, ConfigModule};
+use pup_rs::config::{Config};
 use pup_rs::proton_manager::ProtonManager;
 use tokio::test;
 

@@ -23,7 +23,7 @@ impl std::fmt::Debug for Error {
         match self {
             Error::IoError(e) => write!(f, "IO: {}", e),
             Error::Config(e) => write!(f, "Config: {}", e),
-            Error::Url(e) => write!(f, "URL Error"),
+            Error::Url(_e) => write!(f, "URL Error"),
             Error::Serde(e) => write!(f, "Serde: {}", e),
             Error::Api(e) => write!(f, "API: {}", e),
             Error::NotFound(e) => write!(f, "Not found: {}", e),
@@ -41,7 +41,7 @@ impl std::fmt::Debug for Error {
 }
 
 impl std::fmt::Display for Error {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -61,7 +61,7 @@ impl From<config::ConfigError> for Error {
 }
 
 impl From<base_url::BaseUrlError> for Error {
-    fn from(error: base_url::BaseUrlError) -> Self {
+    fn from(_error: base_url::BaseUrlError) -> Self {
         Error::Url("Invalid URL".to_string())
     }
 }

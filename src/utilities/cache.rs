@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::File;
 use std::hash::Hash;
-use std::io::{Read, Write};
+use std::io::{Write};
 use std::path::PathBuf;
 
 pub struct Cache<T>
@@ -88,11 +88,11 @@ where
 
 fn create_file_if_not_exists(path: &PathBuf) -> Result<(), Error> {
     let file = File::open(path);
-    if !file.is_ok() {
+    if file.is_err() {
         debug!("Creating cache file at {}", path.display());
         let dir = path.parent().unwrap();
         std::fs::create_dir_all(dir).unwrap();
-        File::create(&path)?;
+        File::create(path)?;
     }
 
     Ok(())

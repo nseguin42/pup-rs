@@ -59,11 +59,11 @@ fn extract_gz(archive: &Path, destination: &Path) -> Result<(), Error> {
 
     let url = archive.as_os_str().to_str().unwrap();
 
-    return if url.ends_with(".tar.gz") {
+    if url.ends_with(".tar.gz") {
         unpack_tar_and_save(buffer, destination)
     } else {
         save(buffer, destination)
-    };
+    }
 }
 
 fn extract_xz(archive: &Path, destination: &Path) -> Result<(), Error> {
@@ -74,9 +74,9 @@ fn extract_xz(archive: &Path, destination: &Path) -> Result<(), Error> {
 
     let url = archive.as_os_str().to_str().unwrap();
 
-    return if url.ends_with(".tar.xz") {
+    if url.ends_with(".tar.xz") {
         unpack_tar_and_save(buffer, destination)
     } else {
         save(buffer, destination)
-    };
+    }
 }
