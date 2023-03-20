@@ -74,7 +74,7 @@ impl ProtonManager {
             .map(Release::from)
             .collect();
 
-        self.releases_cache.extend(releases.clone());
+        self.releases_cache.extend(releases);
         Ok(self.releases_cache.get())
     }
 

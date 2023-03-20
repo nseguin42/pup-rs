@@ -5,7 +5,7 @@ use tokio::test;
 fn get_manager() -> ProtonManager {
     let config = Config::new(Option::from("tests/config.test.toml".to_string()));
 
-    let module = config.modules.iter().next().unwrap().clone();
+    let module = config.modules.iter().next().unwrap();
     ProtonManager::new(module.0.clone(), module.1)
 }
 

@@ -2,7 +2,7 @@
 extern crate log;
 
 use clap::Parser;
-use prettytable::{ptable, row, table, Row, Table};
+use prettytable::{row, Row, Table};
 use pup_rs::proton_manager::ProtonManager;
 
 use pup_rs::cli;
