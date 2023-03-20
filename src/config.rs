@@ -67,6 +67,11 @@ fn find_config_file(config_path: Option<String>) -> Result<PathBuf, Error> {
             "Config file not found, creating default config at {:?}",
             config_path
         );
+
+        if let Some(parent) = config_path.parent() {
+            std::fs::create_dir_all(parent)?;
+        }
+
         create_default_config(config_path.clone())?;
     }
 
