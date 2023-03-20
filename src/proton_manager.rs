@@ -40,6 +40,7 @@ impl ProtonManager {
             false => self.fetch_releases(count).await?,
         };
 
+        self.releases_cache.extend(releases.clone());
         Ok(releases)
     }
 
@@ -69,7 +70,7 @@ impl ProtonManager {
             .map(Release::from)
             .collect();
 
-        self.releases_cache.add_range(releases.clone());
+        self.releases_cache.extend(releases.clone());
         Ok(releases)
     }
 
@@ -103,7 +104,13 @@ impl ProtonManager {
         extract::extract(&downloaded_file, &self.config.install_dir)?;
 
         release.installed_in = Some(self.config.install_dir.clone());
-        self.releases_cache.add(release);
+        self.releases_cache.update(release).unwrap();
+        assert!(self.releases_cache.data.iter().any(|r| r.tag_name == tag));
+        assert!(self
+            .releases_cache
+            .data
+            .iter()
+            .any(|r| r.installed_in.is_some()));
 
         info!("Release {} installed successfully.", tag);
         Ok(())

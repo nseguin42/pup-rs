@@ -3,7 +3,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 use std::fs::File;
 use std::hash::Hash;
-use std::io::{Write};
+use std::io::Write;
 use std::path::PathBuf;
 
 pub struct Cache<T>
@@ -33,10 +33,18 @@ where
 
     pub fn add(&mut self, new_data: T) {
         self.data.insert(new_data);
+
         self.save();
     }
 
-    pub fn add_range(&mut self, new_data: Vec<T>) {
+    pub fn update(&mut self, new_data: T) -> Result<(), Error> {
+        self.data.remove(&new_data);
+        self.data.insert(new_data);
+        self.save();
+        Ok(())
+    }
+
+    pub fn extend(&mut self, new_data: Vec<T>) {
         self.data = self
             .data
             .union(&new_data.into_iter().collect::<HashSet<T>>())
@@ -47,11 +55,6 @@ where
 
     pub fn update_range(&mut self, new_data: Vec<T>) {
         self.data.extend(new_data.into_iter());
-        self.save();
-    }
-
-    pub fn update(&mut self, new_data: T) {
-        self.data.insert(new_data);
         self.save();
     }
 
