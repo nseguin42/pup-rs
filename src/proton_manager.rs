@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use base_url::BaseUrl;
 use checksums::Algorithm;
 use dirs::cache_dir;
-use tokio::fs::File;
+
 
 use crate::config::ConfigModule;
 use crate::error::Error;

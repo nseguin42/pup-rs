@@ -55,11 +55,11 @@ fn find_config_file(config_path: Option<String>) -> Result<PathBuf, Error> {
     let config_path = match config_path {
         Some(path) => PathBuf::from(path),
         None => {
-            let path = dirs::config_dir()
+            
+            dirs::config_dir()
                 .ok_or(Error::NotFound("config dir".to_string()))?
                 .join("pup")
-                .join("config.toml");
-            path
+                .join("config.toml")
         }
     };
 
