@@ -18,6 +18,7 @@ pub struct ConfigModule {
     pub cache_dir: PathBuf,
     pub repo: String,
     pub owner: String,
+    pub symlink: Option<String>,
 }
 
 impl Config {

@@ -4,6 +4,7 @@ use std::path::PathBuf;
 use base_url::BaseUrl;
 use checksums::Algorithm;
 use dirs::cache_dir;
+use tokio::fs::File;
 
 use crate::config::ConfigModule;
 use crate::error::Error;
@@ -105,13 +106,44 @@ impl ProtonManager {
             downloaded_file.display(),
             self.config.install_dir.display()
         );
-        extract::extract(&downloaded_file, &self.config.install_dir)?;
+        let contents = extract::extract(&downloaded_file, &self.config.install_dir)?;
+        info!("Extracted files: {:?}", contents);
 
         release.installed_in = Some(self.config.install_dir.clone());
         self.releases_cache.update(release).unwrap();
 
+        if self.config.symlink.is_some() && cfg!(unix) && contents.len() == 1 {
+            let single_contents_path = self.config.install_dir.join(contents[0].clone());
+            if single_contents_path.is_dir() {
+                self.update_symlink(&single_contents_path, self.config.symlink.clone().unwrap())
+                    .await;
+            }
+        }
+
         info!("Release {} installed successfully.", tag);
         Ok(())
+    }
+
+    async fn update_symlink(&self, path: &PathBuf, symlink: String) {
+        if cfg!(not(unix)) {
+            return;
+        }
+
+        let symlink_path = self.config.install_dir.join(symlink);
+        if symlink_path.exists() {
+            if !symlink_path.is_symlink() {
+                panic!("{} is not a symlink", symlink_path.display());
+            }
+
+            std::fs::remove_file(&symlink_path).unwrap();
+        }
+
+        info!(
+            "Updating symlink {} to {}",
+            symlink_path.display(),
+            path.display()
+        );
+        std::os::unix::fs::symlink(path, symlink_path).unwrap();
     }
 
     async fn download_release(&self, release: &Release) -> Result<PathBuf, Error> {
